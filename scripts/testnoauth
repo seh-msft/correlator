@@ -1,0 +1,55 @@
+#!/usr/bin/env rc
+# Copyright (c) 2021, Microsoft Corporation, Sean Hinchee
+# Licensed under the MIT License.
+# usage: testnoauth Items/
+# Checks for non-401 responses to correlated paths without authorization
+# Expects a directory of burpxml.Items contents via jsonfs
+# ex. `go run correlator.go -fuzzy 12 -json -omitauth -nosub -burp history.xml -from alice.db -to bob.db jsons/*`
+
+fn usage {
+	echo 'usage: testnoauth [-b] Items/'
+	exit 1
+}
+
+base = 'Raw'
+
+switch($#*){
+case 0
+	usage
+case *
+	;
+}
+
+while(~ $1 -*){
+	switch($1){
+	case -b
+		base = 'Body'
+	case -*
+		usage
+	}
+	shift
+}
+
+dir = $1
+norespect = ()
+
+for(item in `{ls $dir | sort -g}){
+	top = `{sendhttp.exe 'Accept-Encoding: text/plain' < $dir/$item/Request/$base | grep '^HTTP/'}
+	if(! echo $top | grep -q '40[0-9]'){
+		# Not a 40x
+		norespect = ($norespect $item)
+	}
+}
+
+switch($#norespect){
+case 0
+	echo All requests seem to respect authorization
+case *
+	echo -n 'Offending indices: '
+	for(item in $norespect){
+		echo -n ' '^$item
+	}
+	echo
+}
+
+

@@ -1,0 +1,46 @@
+#!/usr/bin/env rc
+# Copyright (c) 2021, Microsoft Corporation, Sean Hinchee
+# Licensed under the MIT License.
+# Replay all requests with new bearer token, optionally interactively
+
+argv0 = $0
+fn usage {
+	echo >[1=2] 'usage:' $argv0 '[-pb] Items/'
+	exit 1
+}
+
+auto = yes
+base = 'Raw'
+
+while(~ $1 -*){
+	switch($1){
+	case -p
+		auto = no
+
+	case -b
+		base = 'Body' 
+	case -*
+		usage
+	}
+	shift
+}
+
+dir = ()
+
+switch($#*){
+case 1
+	dir = $1
+case *
+	usage
+}
+
+for(item in `{ls $dir}){
+    echo '=== ' $item
+    echo
+
+    sendhttp -show 'Accept-Encoding:' 'Authorization: Bearer '^`{getbearer} < $dir/$item/Request/$base
+    
+	if(~ $auto no){
+		read
+	}
+}

@@ -1,0 +1,77 @@
+#!/usr/bin/env rc
+# Copyright (c) 2021, Microsoft Corporation, Sean Hinchee
+# Licensed under the MIT License.
+# usage: testnewuser Items/ 'Bearer eyqasdfasdfasdf'
+# Checks for non-401 responses to correlated paths with new authorization
+# Expects a directory of burpxml.Items contents via jsonfs
+# ex. `go run correlator.go -fuzzy 12 -json -nosub -burp history.xml -from alice.db -to bob.db jsons/*`
+
+fn usage {
+	echo 'usage: testnewuser [-b] Items/ ''eyqasdfasdfasdf'''
+	exit 1
+}
+
+base = 'Raw'
+
+switch($#*){
+case 0
+	usage
+case *
+	;
+}
+
+while(~ $1 -*){
+        switch($1){
+        case -b
+                base = 'Body'
+        case -*
+                usage
+        }
+        shift
+}
+
+
+dir = $1
+norespect = ()
+
+for(item in `{ls $dir | sort -g}){
+	orig = `{sed 1q < $dir/$item/Response/$base | awk '{print $2}'}
+	top = `{sendhttp.exe 'Accept-Encoding:' 'Authorization: Bearer '^$2 < $dir/$item/Request/$base | sed 1q | sed 's/[\n\r]//g'}
+	code = `{echo $top | awk '{print $2}'}
+
+	echo $top | awk -v code=$code -v orig=$orig -v item=$item '{
+		trail = " ";
+		if(code == orig){
+			trail = "(unchanged)";
+		}
+		printf "%s → %s\t%s", item, $0, trail;
+		printf "\n";
+	}'
+
+	# 400 codes are probably safe to ignore
+	switch($code){
+	case 401
+		;
+	case 403
+		;
+	case 404
+		;
+	case 400
+		;
+	case *
+		# Not a forbidden
+		norespect = ($norespect $item)
+	}
+}
+
+switch($#norespect){
+case 0
+	echo All requests seem to enforce authorization
+case *
+	echo -n 'Offending indices: '
+	for(item in $norespect){
+		echo -n ' '^$item
+	}
+	echo
+}
+

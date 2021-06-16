@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Copyright (c) 2021, Microsoft Corporation, Sean Hinchee
+# Licensed under the MIT License.
+go run correlator.go $* -burp history.xml -from alice.db -to bob.db specifications/*
+
